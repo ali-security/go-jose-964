@@ -8,38 +8,42 @@ matrix:
     - go: tip
 
 go:
-- '1.11.x'
-- '1.12.x'
-- tip
+  - '1.11.x'
+  - '1.12.x'
+  - tip
 
 go_import_path: gopkg.in/square/go-jose.v2
 
 before_script:
-- export PATH=$HOME/.local/bin:$PATH
+  - export PATH=$HOME/.local/bin:$PATH
 
 before_install:
-# Install encrypted gitcookies to get around bandwidth-limits
-# that is causing Travis-CI builds to fail. For more info, see
-# https://github.com/golang/go/issues/12933
-- openssl aes-256-cbc -K $encrypted_1528c3c2cafd_key -iv $encrypted_1528c3c2cafd_iv -in .gitcookies.sh.enc -out .gitcookies.sh -d || true
-- bash .gitcookies.sh || true
-- go get github.com/wadey/gocovmerge
-- go get github.com/mattn/goveralls
-- go get github.com/stretchr/testify/assert
-- go get github.com/stretchr/testify/require
-- go get github.com/google/go-cmp/cmp
-- go get golang.org/x/tools/cmd/cover || true
-- go get code.google.com/p/go.tools/cmd/cover || true
-- pip install cram --user
+  # Install encrypted gitcookies to get around bandwidth-limits
+  # that is causing Travis-CI builds to fail. For more info, see
+  # https://github.com/golang/go/issues/12933
+  - export GOPATH=$HOME/gopath
+  - mkdir -p $GOPATH/src $GOPATH/bin $GOPATH/pkg
+  - export PATH=$PATH:$GOPATH/bin
+  - openssl aes-256-cbc -K $encrypted_1528c3c2cafd_key -iv $encrypted_1528c3c2cafd_iv -in .gitcookies.sh.enc -out .gitcookies.sh -d || true
+  - bash .gitcookies.sh || true
+  - mkdir -p $GOPATH/src/github.com/stretchr && git clone --branch v1.5.1 https://github.com/stretchr/testify.git $GOPATH/src/github.com/stretchr/testify
+  - mkdir -p $GOPATH/src/github.com/google && git clone --branch v0.5.6 https://github.com/google/go-cmp.git $GOPATH/src/github.com/google/go-cmp
+  - mkdir -p $GOPATH/src/golang.org/x && git clone https://go.googlesource.com/crypto $GOPATH/src/golang.org/x/crypto && pushd $GOPATH/src/golang.org/x/crypto && git checkout 30dcbda588387d7d277b9a4ab7d7ae9d739b2982 && popd
+  - mkdir -p $GOPATH/src/github.com/mattn && git clone --branch v0.0.9 https://github.com/mattn/goveralls.git $GOPATH/src/github.com/mattn/goveralls
+  - go get -v github.com/wadey/gocovmerge
+  - pip install cram --user
+
+install:
+  - go get -t -v ./... || true
 
 script:
-- go test . -v -covermode=count -coverprofile=profile.cov
-- go test ./cipher -v -covermode=count -coverprofile=cipher/profile.cov
-- go test ./jwt -v -covermode=count -coverprofile=jwt/profile.cov
-- go test ./json -v # no coverage for forked encoding/json package
-- cd jose-util && go build && PATH=$PWD:$PATH cram -v jose-util.t # cram tests jose-util
-- cd ..
+  - go test . -v # -covermode=count -coverprofile=profile.cov
+  - go test ./cipher -v # -covermode=count -coverprofile=cipher/profile.cov
+  - go test ./jwt -v # -covermode=count -coverprofile=jwt/profile.cov
+  - go test ./json -v # no coverage for forked encoding/json package
+  - cd jose-util && go build && PATH=$PWD:$PATH cram -v jose-util.t # cram tests jose-util
+  - cd ..
 
 after_success:
-- gocovmerge *.cov */*.cov > merged.coverprofile
-- $HOME/gopath/bin/goveralls -coverprofile merged.coverprofile -service=travis-ci
+  - gocovmerge *.cov */*.cov > merged.coverprofile
+  - $HOME/gopath/bin/goveralls -coverprofile merged.coverprofile -service=travis-ci
